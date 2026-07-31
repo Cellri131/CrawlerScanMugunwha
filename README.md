@@ -48,6 +48,8 @@
 
 ---
 
+# MugunwHa Trad Dev version
+
 ## Fichiers requis (dans le même dossier que l’exécutable)
 
 - `manhwa_crawler.py` (script du crawler)  
