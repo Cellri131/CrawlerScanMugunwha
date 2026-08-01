@@ -6,6 +6,10 @@ pages/
 
 # Ignorer les dossiers de build
 dist/
+dist/*
+
+**.exe
+
 build/
 
 __pycache__/
