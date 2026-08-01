@@ -159,7 +159,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='ihm',
+    name='MugunwHaTrad',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
