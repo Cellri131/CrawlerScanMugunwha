@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import ttk
+import threading
 import requests
 
 class TranslatorPanel(ttk.Treeview):
@@ -48,11 +49,24 @@ class TranslatorPanel(ttk.Treeview):
         except Exception:
             return "[Erreur traduction]"
 
-    def translate_from_table(self, table):
+    def translate_from_table(self, table, on_done=None):
+        """Traduit le contenu de `table` en arrière-plan puis remplit ce panneau.
+
+        Les appels réseau (lents) sont exécutés dans un thread séparé ; toute
+        mise à jour du widget Tkinter est renvoyée sur le thread principal via
+        `after()`, car Tkinter n'est pas thread-safe.
+        """
+        rows = [table.item(item, "values") for item in table.get_children()]
+        texts = [val[0] if val else "" for val in rows]
+
         self.delete(*self.get_children())
 
-        for item in table.get_children():
-            val = table.item(item, "values")
-            text = val[0] if val else ""
-            translated = self.google_translate(text)
-            self.insert("", "end", values=(translated,))
+        def worker():
+            for text in texts:
+                translated = self.google_translate(text)
+                self.after(0, lambda t=translated: self.insert("", "end", values=(t,)))
+            if on_done:
+                self.after(0, on_done)
+
+        threading.Thread(target=worker, daemon=True).start()
+
