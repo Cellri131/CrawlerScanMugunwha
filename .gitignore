@@ -17,4 +17,6 @@ __pycache__/
 # ── Assets volumineux embarqués (templates police manga) ─────────────────────
 cara/
 
+manwha_crawler.txt
+
 export.docx

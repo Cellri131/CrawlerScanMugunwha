@@ -1,0 +1,33 @@
+# ============================================================
+# Dépendances Python — Manhwa Chapter Crawler + OCR
+# ============================================================
+# Installation :
+#   pip install -r requirements.txt
+#
+# Prérequis système (hors pip) :
+#   - Tesseract OCR  → https://github.com/UB-Mannheim/tesseract/wiki  (Windows)
+#                      sudo apt install tesseract-ocr                  (Linux)
+#                      brew install tesseract                           (macOS)
+#   - ChromeDriver   → https://googlechromelabs.github.io/chrome-for-testing/
+# ============================================================
+
+selenium>=4.15.0
+requests>=2.31.0
+beautifulsoup4>=4.12.2
+lxml>=4.9.3
+Pillow>=10.1.0
+pytesseract>=0.3.10
+opencv-python>=4.8.0
+numpy>=1.24.0
+webdriver-manager>=4.0.0
+
+# Export DOCX
+python-docx>=1.1.0
+
+# Traduction
+googletrans==4.0.0-rc1
+
+# Empaquetage en .exe autonome (build uniquement, pas requis pour lancer
+# l'app en Python) :
+#   pyinstaller ihm.spec
+pyinstaller>=6.0
