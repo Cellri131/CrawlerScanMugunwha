@@ -1,1 +1,11 @@
-**.txt
+# Ignorer tous les fichiers .txt
+*.txt
+
+# Ignorer le dossier pages et tout son contenu
+pages/
+
+# Ignorer les dossiers de build
+dist/
+build/
+
+__pycache__/
