@@ -52,6 +52,8 @@ from webdriver_manager.chrome import ChromeDriverManager
 import shutil
 import os
 
+import paths
+
 # =============================================================================
 # --- CONFIGURATION ----------------------------------------------------------
 # =============================================================================
@@ -1263,6 +1265,18 @@ def extract_text_lines(
 
 def _check_tesseract() -> None:
     """Vérifie que Tesseract est accessible ; affiche un message d'aide sinon."""
+    # 0) Copie de Tesseract embarquée dans l'application (build PyInstaller) :
+    #    utilisée en priorité pour ne dépendre d'AUCUNE installation système.
+    bundled_exe = paths.resource_path("tesseract", "tesseract.exe")
+    if os.path.isfile(bundled_exe):
+        pytesseract.pytesseract.tesseract_cmd = bundled_exe
+        os.environ["TESSDATA_PREFIX"] = paths.resource_path("tesseract", "tessdata")
+        try:
+            pytesseract.get_tesseract_version()
+            return
+        except Exception:
+            pass
+
     # 1) Si une variable d'environnement 'TESSERACT_CMD' est définie, l'utiliser
     env_path = os.environ.get("TESSERACT_CMD")
     if env_path:
@@ -1304,8 +1318,8 @@ def _check_tesseract() -> None:
                 pass
 
     # Si on arrive ici, Tesseract n'a pas été trouvé
-    sys.exit(
-        "\n[ERREUR] Tesseract OCR est introuvable ou non accessible par Python.\n"
+    raise RuntimeError(
+        "Tesseract OCR est introuvable ou non accessible par Python.\n"
         "Solutions :\n"
         "  1) Installez Tesseract (Windows : UB-Mannheim build).\n"
         "     https://github.com/UB-Mannheim/tesseract/wiki\n\n"
@@ -1321,30 +1335,28 @@ def _check_tesseract() -> None:
     )
 
 
-def main() -> None:
-    print("=" * 60)
-    print("   Manhwa Chapter Crawler + OCR")
-    print("=" * 60)
+def run_crawler(url: str) -> None:
+    """Exécute le pipeline complet pour l'URL donnée : navigation + téléchargement
+    des images, détection des bulles, OCR, écriture de `output.txt`.
 
+    Lève une `RuntimeError` (message destiné à l'utilisateur) en cas d'échec.
+    N'appelle jamais `sys.exit()` : cette fonction est conçue pour être
+    appelée aussi bien en ligne de commande que depuis un thread d'IHM.
+    """
     _check_tesseract()
 
-    # -- Charger les templates de la police manga (cara/) ------------------
+    # -- Charger les templates de la police manga (cara/) --------------------
     global _CARA_TEMPLATES
-    _CARA_TEMPLATES = _load_cara_templates(
-        os.path.join(os.getcwd(), CARA_DIR)
-    )
+    _CARA_TEMPLATES = _load_cara_templates(paths.resource_path(CARA_DIR))
 
-    # -- Saisie de l'URL ------------------------------------------------------
-    url = input("\nEntrez l'URL du chapitre manhwa :\n> ").strip()
+    url = url.strip()
     if not url:
-        sys.exit("URL vide. Arrêt.")
+        raise RuntimeError("URL vide.")
     if not url.startswith("http"):
         url = "https://" + url
-    
-    
 
     # -- Préparer le dossier pages/ -------------------------------------------
-    pages_dir = os.path.join(os.getcwd(), PAGES_DIR)
+    pages_dir = os.path.join(paths.app_dir(), PAGES_DIR)
     os.makedirs(pages_dir, exist_ok=True)
     log.info("Les images seront sauvegardées dans : %s", pages_dir)
 
@@ -1353,11 +1365,11 @@ def main() -> None:
     try:
         driver = create_driver()
     except WebDriverException as exc:
-        sys.exit(
-            f"\n[ERREUR] Impossible de lancer Chrome :\n  {exc}\n\n"
-            "Téléchargez ChromeDriver (même version majeure que votre Chrome) :\n"
-            "  https://googlechromelabs.github.io/chrome-for-testing/"
-        )
+        raise RuntimeError(
+            f"Impossible de lancer Chrome :\n  {exc}\n\n"
+            "Google Chrome doit être installé sur cette machine (Selenium ne "
+            "peut pas piloter un navigateur qu'il ne trouve pas)."
+        ) from exc
 
     pil_images: List[Image.Image] = []   # images téléchargées, dans l'ordre
 
@@ -1366,14 +1378,12 @@ def main() -> None:
         image_urls = fetch_image_urls(driver, url)
 
         if not image_urls:
-            sys.exit(
-                "\n[ERREUR] Aucune image trouvée sur cette page.\n"
+            raise RuntimeError(
+                "Aucune image trouvée sur cette page.\n"
                 "Vérifiez l'URL ou inspectez la structure HTML du site cible."
             )
 
-        print(f"\n{len(image_urls)} image(s) détectée(s) :")
-        for i, u in enumerate(image_urls, 1):
-            print(f"  {i:02d}. {u}")
+        log.info("%d image(s) détectée(s).", len(image_urls))
 
         # Session requests pour les URLs normales (http/https)
         session = requests.Session()
@@ -1392,7 +1402,7 @@ def main() -> None:
         # ⚠️  IMPORTANT : les blob: URLs ne peuvent être lues que PENDANT
         #    la session du navigateur. Le driver ne doit pas être fermé avant
         #    d'avoir extrait tous les blobs via JavaScript.
-        print(f"\nTéléchargement et sauvegarde dans '{pages_dir}'...")
+        log.info("Téléchargement et sauvegarde dans '%s'...", pages_dir)
         for idx, img_url in enumerate(image_urls, 1):
             log.info("[%d/%d] %s", idx, len(image_urls), img_url)
 
@@ -1420,13 +1430,12 @@ def main() -> None:
 
     # -- Vérification ---------------------------------------------------------
     if not pil_images:
-        print(
-            "\n[ERREUR] Aucune image n'a pu être téléchargée.\n"
+        raise RuntimeError(
+            "Aucune image n'a pu être téléchargée.\n"
             "Vérifiez la connexion réseau ou l'URL."
         )
-        return
 
-    print(f"\n{len(pil_images)} image(s) téléchargée(s) et sauvegardée(s) dans '{pages_dir}'.")
+    log.info("%d image(s) téléchargée(s) et sauvegardée(s) dans '%s'.", len(pil_images), pages_dir)
 
     # -- Fusion des pages via fusion.py ---------------------------------------
     from fusion import fusionner_pages as _fusionner_pages
@@ -1436,8 +1445,7 @@ def main() -> None:
         page_all_paths = _fusionner_pages(pages_dir)   # maintenant une LISTE
         log.info("Images fusionnées : %s", page_all_paths)
     except Exception as exc:
-        log.error("Echec de fusion.py : %s", exc)
-        return
+        raise RuntimeError(f"Echec de la fusion des pages : {exc}") from exc
 
     # -- OCR Tesseract sur chaque image fusionnée -----------------------------
     all_lines: List[Tuple[str, bool]] = []
@@ -1461,16 +1469,14 @@ def main() -> None:
     all_lines = _dedup_lines(all_lines)
     log.info("Total : %d ligne(s) après nettoyage.", len(all_lines))
 
-
     # -- Écriture du fichier output.txt ---------------------------------------
     if not all_lines:
-        print(
-            "\n[AVERTISSEMENT] Aucun texte n'a été extrait.\n"
+        raise RuntimeError(
+            "Aucun texte n'a été extrait.\n"
             "Causes possibles : résolution trop faible, Tesseract mal configuré."
         )
-        return
 
-    out_path = os.path.join(os.getcwd(), OUTPUT_FILE)
+    out_path = os.path.join(paths.app_dir(), OUTPUT_FILE)
     count = 0
     with open(out_path, "w", encoding="utf-8") as fout:
         for text, is_bubble in all_lines:
@@ -1480,9 +1486,26 @@ def main() -> None:
                 fout.write(text + " **\n")    # texte hors bulle → marqué **
             count += 1
 
-    print(f"\n[OK] {count} ligne(s) écrite(s) dans '{out_path}'")
-    print(f"[OK] Images sauvegardées dans '{pages_dir}'")
-    print("[TERMINE]")
+    log.info("%d ligne(s) écrite(s) dans '%s'", count, out_path)
+    log.info("Images sauvegardées dans '%s'", pages_dir)
+
+
+def main() -> None:
+    """Point d'entrée en ligne de commande (usage manuel / debug)."""
+    print("=" * 60)
+    print("   Manhwa Chapter Crawler + OCR")
+    print("=" * 60)
+
+    url = input("\nEntrez l'URL du chapitre manhwa :\n> ").strip()
+    if not url:
+        sys.exit("URL vide. Arrêt.")
+
+    try:
+        run_crawler(url)
+    except RuntimeError as exc:
+        sys.exit(f"\n[ERREUR] {exc}")
+
+    print("\n[TERMINE]")
     print(url)
 
 

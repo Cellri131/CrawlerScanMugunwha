@@ -1,16 +1,28 @@
-import sys
 import os
-import subprocess
+import sys
+
+# Un exécutable PyInstaller en mode fenêtré (--windowed) n'a pas de console :
+# sys.stdout / sys.stderr valent alors None, ce qui ferait planter le moindre
+# print()/logging. On les redirige avant d'importer des modules qui écrivent
+# sur ces flux au chargement (ex. `logging.basicConfig` dans manhwa_crawler).
+if sys.stdout is None:
+    sys.stdout = open(os.devnull, "w")
+if sys.stderr is None:
+    sys.stderr = open(os.devnull, "w")
+
+import shutil
 import threading
 
 import tkinter as tk
 from tkinter import ttk, messagebox
 
+import paths
 import theme as th
 from image_panel import ImagePanel
 from table_widget import EditableTable
 from translator_panel import TranslatorPanel
 from exporter import export_docx
+import manhwa_crawler
 
 
 class App(tk.Tk):
@@ -23,7 +35,7 @@ class App(tk.Tk):
         self.configure(bg=th.BG_APP)
 
         try:
-            self.iconbitmap("MugunwHaLogoTrad.ico")
+            self.iconbitmap(paths.resource_path("MugunwHaLogoTrad.ico"))
         except Exception:
             pass
 
@@ -82,7 +94,9 @@ class App(tk.Tk):
         self.paned.pack(fill="both", expand=True, padx=10, pady=10)
 
         # Panel images
-        self.left_panel = ImagePanel(self.paned)
+        self.left_panel = ImagePanel(
+            self.paned, pages_folder=os.path.join(paths.app_dir(), "pages")
+        )
         self.paned.add(self.left_panel, minsize=250, width=550, stretch="never")
 
         # Panel texte (anglais)
@@ -280,30 +294,45 @@ class App(tk.Tk):
             messagebox.showwarning("URL manquante", "Veuillez saisir l'URL du chapitre.")
             return
 
+        self._reset_workspace()
+
         self.btn_run.config(state="disabled")
         self.status_var.set("Crawl en cours...")
 
         threading.Thread(target=self._run_crawler_thread, args=(url,), daemon=True).start()
 
+    def _reset_workspace(self):
+        """Vide le dossier pages/ et supprime l'ancien output.txt avant un
+        nouveau crawl, et remet à zéro l'affichage (images + tableau)."""
+        pages_dir = os.path.join(paths.app_dir(), "pages")
+        if os.path.isdir(pages_dir):
+            for name in os.listdir(pages_dir):
+                item_path = os.path.join(pages_dir, name)
+                try:
+                    if os.path.isdir(item_path):
+                        shutil.rmtree(item_path)
+                    else:
+                        os.remove(item_path)
+                except OSError:
+                    pass
+        else:
+            os.makedirs(pages_dir, exist_ok=True)
+
+        output_path = os.path.join(paths.app_dir(), "output.txt")
+        if os.path.isfile(output_path):
+            try:
+                os.remove(output_path)
+            except OSError:
+                pass
+
+        self.left_panel.load_images()
+        self.right_panel.delete(*self.right_panel.get_children())
+
     def _run_crawler_thread(self, url):
         try:
-            process = subprocess.Popen(
-                [sys.executable, "manhwa_crawler.py"],
-                stdin=subprocess.PIPE,
-                text=True,
-            )
-            process.communicate(url)
-            returncode = process.returncode
+            manhwa_crawler.run_crawler(url)
         except Exception as exc:
             self.after(0, self._on_crawler_error, str(exc))
-            return
-
-        if returncode != 0:
-            self.after(
-                0,
-                self._on_crawler_error,
-                f"Le crawler s'est terminé avec une erreur (code {returncode}).",
-            )
             return
 
         self.after(0, self._on_crawler_done)
@@ -316,8 +345,9 @@ class App(tk.Tk):
     def _on_crawler_done(self):
         self.left_panel.load_images()
 
-        if os.path.isfile("output.txt"):
-            self.right_panel.load_from_file("output.txt")
+        output_path = os.path.join(paths.app_dir(), "output.txt")
+        if os.path.isfile(output_path):
+            self.right_panel.load_from_file(output_path)
             self.status_var.set("Crawl terminé.")
         else:
             self.status_var.set("Crawl terminé, mais aucun texte n'a été extrait.")
@@ -357,11 +387,17 @@ class App(tk.Tk):
         else:
             source = self.right_panel
 
-        export_docx(source)
+        export_path = os.path.join(paths.app_dir(), "export.docx")
+        export_docx(source, filename=export_path)
         messagebox.showinfo("OK", "Exporté en DOCX.")
 
 
 if __name__ == "__main__":
+    # Se placer dans le dossier de l'exécutable (ou du script) : les fichiers
+    # générés (pages/, output.txt, export.docx) doivent vivre à côté de l'exe,
+    # jamais dans le dossier temporaire d'extraction PyInstaller.
+    os.chdir(paths.app_dir())
+
     app = App()
     app.mainloop()
 
