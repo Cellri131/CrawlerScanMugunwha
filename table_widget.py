@@ -6,7 +6,7 @@ import theme as th
 class EditableTable(ttk.Treeview):
     def __init__(self, parent):
         super().__init__(parent, columns=("text"), show="headings")
-        self.heading("text", text="Texte")
+        self.heading("text", text="")
         self.column("text", anchor="w")
 
         self.font_size = 12

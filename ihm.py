@@ -384,12 +384,14 @@ class App(tk.Tk):
         # Exporte le français si la traduction a été faite, sinon l'anglais.
         if self.translation_shown and self.translator_panel.get_children():
             source = self.translator_panel
+            msg = "Exportation du texte traduit en DOCX réussie."
         else:
             source = self.right_panel
+            msg = "Exportation du texte original en DOCX réussie."
 
         export_path = os.path.join(paths.app_dir(), "export.docx")
         export_docx(source, filename=export_path)
-        messagebox.showinfo("OK", "Exporté en DOCX.")
+        messagebox.showinfo("Exportation réussie", msg)
 
 
 if __name__ == "__main__":

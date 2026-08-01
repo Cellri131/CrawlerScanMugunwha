@@ -8,7 +8,7 @@ import theme as th
 class TranslatorPanel(ttk.Treeview):
     def __init__(self, parent):
         super().__init__(parent, columns=("fr"), show="headings")
-        self.heading("fr", text="Traduction FR")
+        self.heading("fr", text="")
         self.column("fr", anchor="w")
 
         self.font_size = 12
