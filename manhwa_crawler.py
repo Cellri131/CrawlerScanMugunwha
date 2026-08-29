@@ -1264,13 +1264,21 @@ def extract_text_lines(
 # =============================================================================
 
 def _check_tesseract() -> None:
-    """Vérifie que Tesseract est accessible ; affiche un message d'aide sinon."""
-    # 0) Copie de Tesseract embarquée dans l'application (build PyInstaller) :
-    #    utilisée en priorité pour ne dépendre d'AUCUNE installation système.
-    bundled_exe = paths.resource_path("tesseract", "tesseract.exe")
-    if os.path.isfile(bundled_exe):
-        pytesseract.pytesseract.tesseract_cmd = bundled_exe
-        os.environ["TESSDATA_PREFIX"] = paths.resource_path("tesseract", "tessdata")
+    """Vérifie que Tesseract est accessible ; affiche un message d'aide sinon.
+
+    Tesseract N'EST PLUS embarqué dans MugunwHaTrad.exe (une copie intégrée
+    ne fonctionnait de façon fiable que sur le PC de build). Il doit être
+    installé une seule fois via `MugunwHaTradInstaller.exe` (voir installer.py),
+    qui le copie dans `installed_dir` ci-dessous puis se supprime lui-même.
+    """
+    installed_dir = os.path.join(
+        os.environ.get("LOCALAPPDATA", os.path.expanduser("~")), "Programs", "Tesseract-OCR"
+    )
+    installed_exe = os.path.join(installed_dir, "tesseract.exe")
+
+    # 0) Emplacement d'installation posé par MugunwHaTradInstaller.exe
+    if os.path.isfile(installed_exe):
+        pytesseract.pytesseract.tesseract_cmd = installed_exe
         try:
             pytesseract.get_tesseract_version()
             return
@@ -1305,8 +1313,6 @@ def _check_tesseract() -> None:
         r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
         # Path utilisateur signalé (parfois typo "ORC")
         r"C:\Program Files\Tesseract-ORC\tesseract.exe",
-        # Chemin local d'installation pour l'utilisateur courant
-        r"C:\Users\R_BAR\AppData\Local\Programs\Tesseract-OCR\tesseract.exe",
     ]
     for p in common_win_paths:
         if os.path.exists(p):
@@ -1320,7 +1326,11 @@ def _check_tesseract() -> None:
     # Si on arrive ici, Tesseract n'a pas été trouvé
     raise RuntimeError(
         "Tesseract OCR est introuvable ou non accessible par Python.\n"
-        "Solutions :\n"
+        "Solution recommandée :\n"
+        "  Lancez UNE SEULE FOIS MugunwHaTradInstaller.exe (fourni à côté de\n"
+        "  MugunwHaTrad.exe) : il installe Tesseract automatiquement, puis se\n"
+        "  supprime lui-même une fois l'installation vérifiée.\n\n"
+        "Solutions manuelles alternatives :\n"
         "  1) Installez Tesseract (Windows : UB-Mannheim build).\n"
         "     https://github.com/UB-Mannheim/tesseract/wiki\n\n"
         "  2) Ajoutez le dossier d'installation au PATH (ex. C:\\Program Files\\Tesseract-OCR).\n"

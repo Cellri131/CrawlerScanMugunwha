@@ -29,5 +29,8 @@ googletrans==4.0.0-rc1
 
 # Empaquetage en .exe autonome (build uniquement, pas requis pour lancer
 # l'app en Python) :
-#   pyinstaller ihm.spec
+#   pyinstaller ihm.spec        → MugunwHaTrad.exe (application principale)
+#   pyinstaller installer.spec  → MugunwHaTradInstaller.exe (installe Tesseract
+#                                  une seule fois sur une machine qui ne l'a
+#                                  pas déjà, puis se supprime lui-même)
 pyinstaller>=6.0

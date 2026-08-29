@@ -95,9 +95,12 @@ class ImagePanel(tk.Frame):
             self.tk_photos.append(photo)
 
             self.canvas.create_image(margin, y_offset, anchor="nw", image=photo)
-            y_offset += h + margin
+            # Pas de marge entre deux page_all* : ce sont des morceaux d'une
+            # même lecture continue (découpés seulement à cause de max_height
+            # dans fusion.py), une marge ici créerait une fausse séparation.
+            y_offset += h
 
-        self.canvas.configure(scrollregion=(0, 0, width, y_offset))
+        self.canvas.configure(scrollregion=(0, 0, width, y_offset + margin))
 
     # ------------------------------------------------------------------
     # Molette de la souris
