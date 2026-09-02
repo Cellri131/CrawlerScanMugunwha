@@ -283,6 +283,7 @@ class App(tk.Tk):
             "- Entrée : insérer une ligne vide sous la ligne sélectionnée.\n"
             "- Retour arrière : fusionner avec la ligne précédente.\n"
             "- Suppr : supprimer la ligne sélectionnée.\n"
+            "- Touche E : ajouter ** à la fin de la ligne (marqueur hors-bulle).\n"
         )
 
     # -------------------------------------------------------------------
