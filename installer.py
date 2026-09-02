@@ -35,7 +35,7 @@ APP_EXE_NAME = "MugunwHaTrad.exe"
 # Lien "latest" GitHub : redirige toujours vers l'asset de la toute dernière
 # release publiée, sans avoir besoin d'appeler l'API GitHub.
 APP_LATEST_RELEASE_URL = (
-    "https://github.com/Cellri131/CrawlerScanMugunwha/releases"
+    "https://github.com/Cellri131/CrawlerScanMugunwha/releases/latest/download/"
     + APP_EXE_NAME
 )
 
